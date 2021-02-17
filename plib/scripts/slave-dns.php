@@ -23,16 +23,20 @@ foreach ($data as $task) {
     }
 
     $rndc = new Modules_SlaveDnsManager_Rndc();
+    
+    if ($rndc->isAuthoritative($domain){
 
-    switch ($command) {
-        case 'create':
-            $rndc->addZone($domain);
-            break;
-        case 'update':
-            $rndc->updateZone($domain);
-            break;
-        case 'delete':
-            $rndc->deleteZone($domain);
-            break;
+      switch ($command) {
+          case 'create':
+              $rndc->addZone($domain);
+              break;
+          case 'update':
+              $rndc->updateZone($domain);
+              break;
+          case 'delete':
+              $rndc->deleteZone($domain);
+              break;
+      }
+    
     }
 }

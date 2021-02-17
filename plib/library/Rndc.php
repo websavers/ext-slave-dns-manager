@@ -35,6 +35,31 @@ class Modules_SlaveDnsManager_Rndc
 
         return $code == 0;
     }
+    
+    public function isAuthoritative($domain)
+    {
+      /**
+       * It does not appear that there's a difference between a DNS_NS lookup and using the pass by ref $authoritative var
+       * $dns = dns_get_record($domain, DNS_NS, $authoritative);
+       * Important: if this server uses localhost as a resolver, this test will fail.
+       */
+      $dns = dns_get_record($domain, DNS_A + DNS_NS);
+      $nameserver_ips = [];
+      foreach ($dns as $record) {
+        switch ($record['type']) {
+          case 'A':
+            $a_record = $record['ip'];
+            break;
+          case 'NS':
+            $nameserver_ips[] = gethostbyname($record['target']);
+            break;
+          default:
+            continue;
+        }         
+      }
+      
+      return in_array($a_record, $nameserver_ips);
+    }
 
     public function addZone($domain, Modules_SlaveDnsManager_Slave $slave = null)
     {
