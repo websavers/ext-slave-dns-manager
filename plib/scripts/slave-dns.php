@@ -24,7 +24,7 @@ foreach ($data as $task) {
 
     $rndc = new Modules_SlaveDnsManager_Rndc();
     
-    if ($rndc->isAuthoritative($domain){
+    if ($rndc->isAuthoritative($domain)){
 
       switch ($command) {
           case 'create':

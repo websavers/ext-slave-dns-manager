@@ -35,31 +35,6 @@ class Modules_SlaveDnsManager_Rndc
 
         return $code == 0;
     }
-    
-    public function isAuthoritative($domain)
-    {
-      /**
-       * It does not appear that there's a difference between a DNS_NS lookup and using the pass by ref $authoritative var
-       * $dns = dns_get_record($domain, DNS_NS, $authoritative);
-       * Important: if this server uses localhost as a resolver, this test will fail.
-       */
-      $dns = dns_get_record($domain, DNS_A + DNS_NS);
-      $nameserver_ips = [];
-      foreach ($dns as $record) {
-        switch ($record['type']) {
-          case 'A':
-            $a_record = $record['ip'];
-            break;
-          case 'NS':
-            $nameserver_ips[] = gethostbyname($record['target']);
-            break;
-          default:
-            continue;
-        }         
-      }
-      
-      return in_array($a_record, $nameserver_ips);
-    }
 
     public function addZone($domain, Modules_SlaveDnsManager_Slave $slave = null)
     {
@@ -97,5 +72,45 @@ class Modules_SlaveDnsManager_Rndc
     public function checkStatus(Modules_SlaveDnsManager_Slave $slave)
     {
         return $this->_call($slave, "status", true);
+    }
+    
+    private static function getHostingIp($domain)
+    {
+        $request = "<site><get><filter><name>$domain</name></filter><dataset><hosting/></dataset></get></site>";
+        $response = pm_ApiRpc::getService('1.6.5.0')->call($request);
+        if ('ok' != $response->site->get->result->status) {
+            throw new pm_Exception("Unable to get IP for domain $domain. Error: {$response->site->get->result->errtext}");
+        }
+
+        // Get all IP-addresses
+        foreach ($response->site->get->result->hosting->vrt_hst->ip_address as $address) {
+            $ipAddresses[] = (string)$address;
+        }
+
+        if (count($ipAddresses) > 0) {
+            return $ipAddresses;
+        }
+
+        throw new pm_Exception("Unable to get IP for domain $domain: empty result.");
+    }
+    
+    public function isAuthoritative($domain)
+    {
+      /**
+       * It does not appear that there's a difference between a DNS_NS lookup and using the pass by ref $authoritative var
+       * $dns = dns_get_record($domain, DNS_NS, $authoritative);
+       * Important: if this server uses localhost as a resolver, this test will fail.
+       */
+      $dns = dns_get_record($domain, DNS_NS);
+      $nameserver_ips = [];
+      foreach ($dns as $record) {
+          $nameserver_ips[] = gethostbyname($record['target']);         
+      }
+      
+      $local_ips = getHostingIp($domain);
+      
+      $matches = array_intersect($local_ips, $nameserver_ips);
+      
+      return (count($matches) > 0)? true:false;
     }
 }
